@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // import { APIKEY } from '@/constant/APP';
 
 @Injectable()
@@ -18,17 +18,23 @@ export class CreatService {
     // / 配置代理
     const privateKey = process.env.NODE_PRIVATEKEY;
 
-    // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
+    const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
     const openai = new OpenAI({
       apiKey: privateKey,
-      // httpAgent: proxyAgent,
+      httpAgent: proxyAgent,
     });
 
     try {
+      console.log(
+        createCreatDto,
+        'createCreatDtocreateCreatDtocreateCreatDtocreateCreatDtocreateCreatDto',
+      );
       // 调用 OpenAI 文生图 API
       const result = await openai.images.generate({
         model: 'dall-e-2', // 注意：这里使用正确的模型名称，例如 'dall-e-3'
         prompt: createCreatDto.prompt,
+        // quality: createCreatDto.quality as any,
+        size: createCreatDto.size as any,
         // response_format: 'b64_json',
       });
       console.log(result);

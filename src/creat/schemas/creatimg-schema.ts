@@ -7,6 +7,8 @@ export type CatDocument = CreatImg & Document;
 export class CreatImg {
   @Prop({ required: true })
   prompt: string;
+  quality: string;
+  size: string;
 }
 
 export const CreatImgSchema = SchemaFactory.createForClass(CreatImg);
