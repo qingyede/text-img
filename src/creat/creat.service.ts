@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
 // import { APIKEY } from '@/constant/APP';
 
 @Injectable()
@@ -18,10 +18,10 @@ export class CreatService {
     // / 配置代理
     const privateKey = process.env.NODE_PRIVATEKEY;
 
-    const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
+    // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
     const openai = new OpenAI({
       apiKey: privateKey,
-      httpAgent: proxyAgent,
+      // httpAgent: proxyAgent,
     });
 
     try {
