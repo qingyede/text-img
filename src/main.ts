@@ -13,7 +13,11 @@ async function bootstrap() {
     }),
   );
   // 开启跨域
-  app.enableCors();
+  app.enableCors({
+    origin: true, // 也可以填写具体地址如 'http://154.198.49.172:6004'
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   await app.listen(process.env.PORT ?? 6009);
 }
 bootstrap();
