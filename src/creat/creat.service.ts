@@ -5,7 +5,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { translateToEnglish } from './api/index';
+import { isPureEnglish } from '@/hook/common/isPureEnglish';
 // import { APIKEY } from '@/constant/APP';
 
 @Injectable()
@@ -18,10 +20,10 @@ export class CreatService {
     // / 配置代理
     const privateKey = process.env.NODE_PRIVATEKEY;
 
-    // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
+    const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
     const openai = new OpenAI({
       apiKey: privateKey,
-      // httpAgent: proxyAgent,
+      httpAgent: proxyAgent,
     });
 
     try {
@@ -29,6 +31,19 @@ export class CreatService {
         createCreatDto,
         'createCreatDtocreateCreatDtocreateCreatDtocreateCreatDtocreateCreatDto',
       );
+
+      // 判断是否为英文（只包含字母、数字、空格和常见标点）
+
+      const isEnglish = isPureEnglish(createCreatDto.prompt);
+      console.log('Is English:', isEnglish);
+
+      if (!isEnglish) {
+        // 如果不是英文
+        const rs = await translateToEnglish(createCreatDto.prompt);
+        console.log(rs, 'rsrsrsrs');
+        createCreatDto.prompt = rs;
+      }
+
       // 调用 OpenAI 文生图 API
       const result = await openai.images.generate({
         model: 'dall-e-2', // 注意：这里使用正确的模型名称，例如 'dall-e-3'
