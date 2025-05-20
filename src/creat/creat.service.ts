@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCreatDto } from './dto/create-creat.dto';
-import { UpdateCreatDto } from './dto/update-creat.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
@@ -26,11 +25,6 @@ export class CreatService {
     });
 
     try {
-      console.log(
-        createCreatDto,
-        'createCreatDtocreateCreatDtocreateCreatDtocreateCreatDtocreateCreatDto',
-      );
-
       // 判断是否为英文（只包含字母、数字、空格和常见标点）
 
       const isEnglish = isPureEnglish(createCreatDto.prompt);
@@ -48,10 +42,19 @@ export class CreatService {
         model: 'dall-e-2', // 注意：这里使用正确的模型名称，例如 'dall-e-3'
         prompt: createCreatDto.prompt,
         // quality: createCreatDto.quality as any,
-        size: createCreatDto.size as any,
+        // size: createCreatDto.size as any,
         response_format: 'b64_json',
       });
       console.log(result);
+      // 保存到数据库里
+      const creatImg = new this.CreatImgModel({
+        prompt: createCreatDto.prompt,
+        time: new Date().toLocaleString(), // 本地格式化，如 "2025/5/20 14:53:22"
+        image: `data:image/png;base64,${result.data[0].b64_json}`,
+        userId: createCreatDto.userId,
+      });
+      await creatImg.save();
+
       // 返回 base64 数据给前端
       return {
         code: 200,
@@ -67,19 +70,54 @@ export class CreatService {
     }
   }
 
-  findAll() {
-    return `This action returns all creat`;
+  async findAll(userId: string) {
+    const data = await this.CreatImgModel.find({ userId }).sort({
+      createdAt: -1,
+    });
+    return {
+      code: 200,
+      message: '查询成功',
+      data,
+    };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} creat`;
+  async remove(id: string) {
+    try {
+      const result = await this.CreatImgModel.findByIdAndDelete(id).exec();
+      if (!result) {
+        return {
+          code: 404,
+          message: '未找到该图片记录',
+        };
+      }
+      return {
+        code: 200,
+        message: '删除成功',
+        data: result,
+      };
+    } catch (error) {
+      return {
+        code: 10001,
+        message: '删除失败',
+        error,
+      };
+    }
   }
 
-  update(id: number, updateCreatDto: UpdateCreatDto) {
-    return `${updateCreatDto}`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} creat`;
+  async removeAll(): Promise<any> {
+    try {
+      const result = await this.CreatImgModel.deleteMany({}).exec();
+      return {
+        code: 200,
+        message: '全部图片已删除',
+        data: result,
+      };
+    } catch (error) {
+      return {
+        code: 10001,
+        message: '删除全部失败',
+        error,
+      };
+    }
   }
 }

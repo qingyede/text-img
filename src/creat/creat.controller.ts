@@ -3,13 +3,12 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CreatService } from './creat.service';
 import { CreateCreatDto } from './dto/create-creat.dto';
-import { UpdateCreatDto } from './dto/update-creat.dto';
 
 @Controller('creat')
 export class CreatController {
@@ -21,22 +20,18 @@ export class CreatController {
   }
 
   @Get()
-  findAll() {
-    return this.creatService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.creatService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCreatDto: UpdateCreatDto) {
-    return this.creatService.update(+id, updateCreatDto);
+  findAll(@Query('userId') userId: string) {
+    console.log(userId);
+    return this.creatService.findAll(userId);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.creatService.remove(+id);
+    return this.creatService.remove(id);
+  }
+
+  @Delete()
+  removeAll() {
+    return this.creatService.removeAll();
   }
 }

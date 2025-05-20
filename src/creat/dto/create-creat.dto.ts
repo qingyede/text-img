@@ -12,4 +12,8 @@ export class CreateCreatDto {
   @IsOptional()
   @IsString({ message: '尺寸必须是字符串-size' })
   size?: string;
+
+  @IsString({ message: '用户id必须是字符串-userId' })
+  @IsNotEmpty({ message: '用户id不能为空-userId' })
+  userId: string;
 }
