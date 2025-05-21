@@ -6,7 +6,7 @@ import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
 import { translateToEnglish } from './api/index';
 import { isPureEnglish } from '@/hook/common/isPureEnglish';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 @Injectable()
 export class CreatService {
@@ -15,58 +15,171 @@ export class CreatService {
   ) {}
 
   async create(createCreatDto: CreateCreatDto) {
-    // / 配置代理
-    const privateKey = process.env.NODE_PRIVATEKEY;
+    if (createCreatDto.type === 'gpt') {
+      const privateKey = process.env.NODE_PRIVATEKEY;
+      const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
 
-    // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890'); // 使用与 curl 相同的代理地址
-    const openai = new OpenAI({
-      apiKey: privateKey,
-      // httpAgent: proxyAgent,
-    });
+      const openai = new OpenAI({
+        apiKey: privateKey,
+        httpAgent: proxyAgent,
+      });
 
-    try {
-      // 判断是否为英文（只包含字母、数字、空格和常见标点）
+      try {
+        const isEnglish = isPureEnglish(createCreatDto.prompt);
+        if (!isEnglish) {
+          const rs = await translateToEnglish(createCreatDto.prompt);
+          createCreatDto.prompt = rs;
+        }
 
-      const isEnglish = isPureEnglish(createCreatDto.prompt);
-      console.log('Is English:', isEnglish);
+        const result = await openai.images.generate({
+          model: 'dall-e-2', // 或 'dall-e-3' 根据需要切换
+          prompt: createCreatDto.prompt,
+          response_format: 'b64_json',
+        });
 
-      if (!isEnglish) {
-        // 如果不是英文
-        const rs = await translateToEnglish(createCreatDto.prompt);
-        console.log(rs, 'rsrsrsrs');
-        createCreatDto.prompt = rs;
+        const creatImg = new this.CreatImgModel({
+          prompt: createCreatDto.prompt,
+          time: new Date().toLocaleString(),
+          image: `data:image/png;base64,${result.data[0].b64_json}`,
+          userId: createCreatDto.userId,
+        });
+        await creatImg.save();
+
+        return {
+          code: 200,
+          message: '图片生成成功',
+          result,
+        };
+      } catch (error) {
+        return {
+          code: 10001,
+          message: '图片生成失败',
+          error,
+        };
       }
+    } else if (createCreatDto.type === 'flux-dev') {
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
 
-      // 调用 OpenAI 文生图 API
-      const result = await openai.images.generate({
-        model: 'dall-e-2', // 注意：这里使用正确的模型名称，例如 'dall-e-3'
-        prompt: createCreatDto.prompt,
-        // quality: createCreatDto.quality as any,
-        // size: createCreatDto.size as any,
-        response_format: 'b64_json',
-      });
-      console.log(result);
-      // 保存到数据库里
-      const creatImg = new this.CreatImgModel({
-        prompt: createCreatDto.prompt,
-        time: new Date().toLocaleString(), // 本地格式化，如 "2025/5/20 14:53:22"
-        image: `data:image/png;base64,${result.data[0].b64_json}`,
-        userId: createCreatDto.userId,
-      });
-      await creatImg.save();
+      const runModel = async (): Promise<string | null> => {
+        const url = 'https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-dev';
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        };
+        const payload = {
+          // 提示词：
+          prompt: createCreatDto.prompt,
 
-      // 返回 base64 数据给前端
-      return {
-        code: 200,
-        message: '图片生成成功',
-        result,
+          // 强度：设置为 0.9，增加提示词对生成图像的影响，适合纯文本生成（无参考图像）。
+          // 可用值：0.00 ~ 1.00，值越大越偏向提示词描述。
+          strength: createCreatDto.strength,
+
+          // 图像尺寸：选择更高分辨率 1280x1280 以获得更精细的细节。
+          // 可用值：512 ~ 1536（每维度），格式为“宽度*高度”。
+          size: createCreatDto.size,
+
+          // 推理步骤数：设置为 50，最大化图像质量，适合高质量生成场景。
+          // 可用值：1 ~ 50，值越大图像越精细但耗时更长。
+          num_inference_steps: createCreatDto.num_inference_steps,
+
+          // 引导尺度：设置为 7.0，增强模型对提示词的遵循程度，生成更贴合描述的图像。
+          // 可用值：1.0 ~ 10.0，值越大越严格遵循提示词。
+          guidance_scale: createCreatDto.guidance_scale,
+
+          // 是否启用 Base64 输出：设置为 true，返回 Base64 编码图像，适合需要直接处理图像数据的场景。
+          // 可用值：true 或 false。false 时返回 URL。
+          enable_base64_output: true,
+
+          // 是否启用安全检查：设置为 true，启用安全检查器以过滤不适当内容。
+          // 可用值：true 或 false。建议公开场景中启用。
+          enable_safety_checker: createCreatDto.enable_safety_checker,
+        };
+
+        console.log(JSON.stringify(payload));
+
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            console.error(
+              `Error: ${response.status}, ${await response.text()}`,
+            );
+            return null;
+          }
+
+          const result = await response.json();
+          const requestId = result.data.id;
+
+          while (true) {
+            const pollRes = await fetch(
+              `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+              {
+                headers: {
+                  Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+                },
+              },
+            );
+
+            const pollJson = await pollRes.json();
+            if (!pollRes.ok) {
+              console.error('Error:', pollRes.status, JSON.stringify(pollJson));
+              return null;
+            }
+
+            const status = pollJson.data.status;
+
+            if (status === 'completed') {
+              console.log(pollJson.data.outputs[0]);
+              return pollJson.data.outputs[0]; // base64 或 URL，依据你的设置
+            } else if (status === 'failed') {
+              console.error('Task failed:', pollJson.data.error);
+              return null;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        } catch (error) {
+          console.error(`Request failed: ${error}`);
+          return null;
+        }
       };
-    } catch (error) {
-      return {
-        code: 10001,
-        message: '图片生成失败',
-        error: error,
-      };
+
+      try {
+        const resultImage = await runModel();
+
+        if (!resultImage) {
+          return {
+            code: 10001,
+            message: '图片生成失败',
+          };
+        }
+
+        const creatImg = new this.CreatImgModel({
+          prompt: createCreatDto.prompt,
+          time: new Date().toLocaleString(),
+          image: resultImage.startsWith('data:')
+            ? resultImage
+            : `data:image/png;base64,${resultImage}`,
+          userId: createCreatDto.userId,
+        });
+        await creatImg.save();
+
+        return {
+          code: 200,
+          message: '图片生成成功',
+          result: resultImage,
+        };
+      } catch (error) {
+        return {
+          code: 10001,
+          message: '图片生成异常',
+          error,
+        };
+      }
     }
   }
 

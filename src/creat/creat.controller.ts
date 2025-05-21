@@ -14,6 +14,7 @@ import { CreateCreatDto } from './dto/create-creat.dto';
 export class CreatController {
   constructor(private readonly creatService: CreatService) {}
 
+  // 生成gpt图片
   @Post()
   create(@Body() createCreatDto: CreateCreatDto) {
     return this.creatService.create(createCreatDto);

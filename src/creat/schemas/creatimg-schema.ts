@@ -20,8 +20,23 @@ export class CreatImg {
   @Prop()
   time: string;
 
-  @Prop() // 标记为必填项
+  @Prop()
   image: string;
+
+  @Prop()
+  type: string;
+
+  @Prop()
+  strength: string;
+
+  @Prop()
+  num_inference_steps: string;
+
+  @Prop()
+  guidance_scale: string;
+
+  @Prop()
+  enable_safety_checker: string;
 }
 
 export const CreatImgSchema = SchemaFactory.createForClass(CreatImg);
