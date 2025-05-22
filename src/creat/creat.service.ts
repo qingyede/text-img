@@ -4,8 +4,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
-import { translateToEnglish } from './api/index';
-import { isPureEnglish } from '@/hook/common/isPureEnglish';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
 @Injectable()
@@ -25,10 +23,16 @@ export class CreatService {
       });
 
       try {
-        const isEnglish = isPureEnglish(createCreatDto.prompt);
-        if (!isEnglish) {
-          const rs = await translateToEnglish(createCreatDto.prompt);
-          createCreatDto.prompt = rs;
+        // 开始翻译
+        const rs = await this.translateToEnglish(createCreatDto.prompt);
+        if (rs.code !== 200) {
+          return {
+            code: 10001,
+            message: '翻译失败',
+            error: rs,
+          };
+        } else {
+          createCreatDto.prompt = rs.data;
         }
 
         const result = await openai.images.generate({
@@ -60,12 +64,26 @@ export class CreatService {
     } else if (createCreatDto.type === 'flux-dev') {
       const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
 
-      const runModel = async (): Promise<string | null> => {
+      const runModel = async (): Promise<any> => {
         const url = 'https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-dev';
         const headers = {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${WAVESPEED_API_KEY}`,
         };
+        console.log(createCreatDto.prompt, 'createCreatDto.prompt');
+        // 开始翻译
+        const rs = await this.translateToEnglish(createCreatDto.prompt);
+        console.log(rs);
+        if (rs.code !== 200) {
+          return {
+            code: 10001,
+            message: '翻译失败',
+            error: rs,
+          };
+        } else {
+          createCreatDto.prompt = rs.data;
+        }
+
         const payload = {
           // 提示词：
           prompt: createCreatDto.prompt,
@@ -230,6 +248,38 @@ export class CreatService {
         code: 10001,
         message: '删除全部失败',
         error,
+      };
+    }
+  }
+
+  // 翻译成英文
+
+  async translateToEnglish(text: string): Promise<any> {
+    try {
+      const privateKey = process.env.NODE_PRIVATEKEY;
+      const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
+      console.log(text);
+      const openai = new OpenAI({
+        apiKey: privateKey,
+        httpAgent: proxyAgent,
+      });
+
+      const response = await openai.responses.create({
+        model: 'gpt-4.1',
+        input: `请将以下内容翻译成英文：${text}，可能会包含多种语言，你可以稍微整合一下翻译让它很通顺，我要用它用生成图片交给大模型，你不必一大堆分析，直接就直接明了的给我最终的翻译句子就行了，记住直接返回翻译后的句子，不必多说什么`,
+      });
+
+      console.log(response.output_text);
+      return {
+        code: 200,
+        msg: '成功',
+        data: response.output_text,
+      };
+    } catch (error) {
+      return {
+        code: 10001,
+        msg: '翻译失败',
+        data: error,
       };
     }
   }

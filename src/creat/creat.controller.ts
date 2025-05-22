@@ -28,7 +28,8 @@ export class CreatController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.creatService.remove(id);
+    console.log(id, 'idididid');
+    return this.creatService.translateToEnglish('我是幸运的');
   }
 
   @Delete()
