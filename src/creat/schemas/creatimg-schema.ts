@@ -37,6 +37,9 @@ export class CreatImg {
 
   @Prop()
   enable_safety_checker: string;
+
+  @Prop()
+  img: string;
 }
 
 export const CreatImgSchema = SchemaFactory.createForClass(CreatImg);

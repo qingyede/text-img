@@ -198,6 +198,121 @@ export class CreatService {
           error,
         };
       }
+    } else if (createCreatDto.type === 'hidream-i1-full') {
+      const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
+
+      const runModel = async (): Promise<any> => {
+        const url =
+          'https://api.wavespeed.ai/api/v3/wavespeed-ai/hidream-e1-full';
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+        };
+        console.log(createCreatDto.prompt, 'createCreatDto.prompt');
+        // 开始翻译
+        const rs = await this.translateToEnglish(createCreatDto.prompt);
+        console.log(rs);
+        if (rs.code !== 200) {
+          return {
+            code: 10001,
+            message: '翻译失败',
+            error: rs,
+          };
+        } else {
+          createCreatDto.prompt = rs.data;
+        }
+
+        const payload = {
+          prompt: createCreatDto.prompt,
+          image: createCreatDto.img,
+          seed: -1,
+          enable_base64_output: false,
+          enable_safety_checker: true,
+        };
+
+        console.log(JSON.stringify(payload));
+
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            console.error(
+              `Error: ${response.status}, ${await response.text()}`,
+            );
+            return null;
+          }
+
+          const result = await response.json();
+          const requestId = result.data.id;
+
+          while (true) {
+            const pollRes = await fetch(
+              `https://api.wavespeed.ai/api/v3/predictions/${requestId}/result`,
+              {
+                headers: {
+                  Authorization: `Bearer ${WAVESPEED_API_KEY}`,
+                },
+              },
+            );
+
+            const pollJson = await pollRes.json();
+            if (!pollRes.ok) {
+              console.error('Error:', pollRes.status, JSON.stringify(pollJson));
+              return null;
+            }
+
+            const status = pollJson.data.status;
+
+            if (status === 'completed') {
+              console.log(pollJson.data.outputs[0]);
+              return pollJson.data.outputs[0]; // base64 或 URL，依据你的设置
+            } else if (status === 'failed') {
+              console.error('Task failed:', pollJson.data.error);
+              return null;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        } catch (error) {
+          console.error(`Request failed: ${error}`);
+          return null;
+        }
+      };
+
+      try {
+        const resultImage = await runModel();
+
+        if (!resultImage) {
+          return {
+            code: 10001,
+            message: '图片生成失败',
+          };
+        }
+
+        const creatImg = new this.CreatImgModel({
+          prompt: createCreatDto.prompt,
+          time: new Date().toLocaleString(),
+          image: resultImage,
+          userId: createCreatDto.userId,
+        });
+        await creatImg.save();
+
+        return {
+          code: 200,
+          message: '图片生成成功',
+          result: resultImage,
+        };
+      } catch (error) {
+        return {
+          code: 10001,
+          message: '图片生成异常',
+          error,
+        };
+      }
     }
   }
 
