@@ -63,7 +63,7 @@ export class CreatService {
       }
     } else if (createCreatDto.type === 'flux-dev') {
       const WAVESPEED_API_KEY = process.env.WAVESPEED_API_KEY;
-
+      console.log(WAVESPEED_API_KEY, 'WAVESPEED_API_KEY');
       const runModel = async (): Promise<any> => {
         const url = 'https://api.wavespeed.ai/api/v3/wavespeed-ai/flux-dev';
         const headers = {
@@ -313,6 +313,95 @@ export class CreatService {
           error,
         };
       }
+    } else if (createCreatDto.type === 'Midjourney') {
+      const runMidjourneyModel = async (): Promise<any> => {
+        const MIDJOURNEY_API_URL =
+          'https://api.acedata.cloud/midjourney/imagine';
+        // const MIDJOURNEY_API_KEY = '7b6756ed84e64c099e0275eb63ab4e7b'; // 建议使用环境变量
+        const MIDJOURNEY_API_KEY = process.env.MIDJOURNEY_API_KEY;
+
+        // 翻译 prompt
+        const rs = await this.translateToEnglish(createCreatDto.prompt);
+        if (rs.code !== 200) {
+          return {
+            code: 10001,
+            message: '翻译失败',
+            error: rs,
+          };
+        } else {
+          createCreatDto.prompt = rs.data;
+        }
+
+        const payload = {
+          prompt: createCreatDto.prompt,
+        };
+
+        const headers = {
+          Authorization: `Bearer ${MIDJOURNEY_API_KEY}`,
+          'Content-Type': 'application/json',
+        };
+
+        try {
+          const response = await fetch(MIDJOURNEY_API_URL, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            console.error(
+              `Error: ${response.status}, ${await response.text()}`,
+            );
+            return null;
+          }
+
+          const result = await response.json();
+          if (!result.success) {
+            console.error('Midjourney API 返回失败:', result);
+            return null;
+          }
+
+          // 提取图片地址
+          // const resultImage = result.raw_image_url || result.image_url;
+          const resultImage = result.raw_image_url;
+
+          return resultImage;
+        } catch (error) {
+          console.error(`请求 Midjourney 失败: ${error}`);
+          return null;
+        }
+      };
+
+      try {
+        const resultImage = await runMidjourneyModel();
+
+        if (!resultImage) {
+          return {
+            code: 10001,
+            message: '图片生成失败',
+          };
+        }
+
+        const creatImg = new this.CreatImgModel({
+          prompt: createCreatDto.prompt,
+          time: new Date().toLocaleString(),
+          image: resultImage,
+          userId: createCreatDto.userId,
+        });
+        await creatImg.save();
+
+        return {
+          code: 200,
+          message: '图片生成成功',
+          result: resultImage,
+        };
+      } catch (error) {
+        return {
+          code: 10001,
+          message: '图片生成异常',
+          error,
+        };
+      }
     }
   }
 
@@ -381,7 +470,7 @@ export class CreatService {
 
       const response = await openai.responses.create({
         model: 'gpt-4.1',
-        input: `请将以下内容翻译成英文：${text}，可能会包含多种语言，你可以稍微整合一下翻译让它很通顺，我要用它用生成图片交给大模型，你不必一大堆分析，直接就直接明了的给我最终的翻译句子就行了，记住直接返回翻译后的句子，不必多说什么`,
+        input: `请将以下内容翻译成英文：${text}，可能会包含多种语言，你可以稍微整合一下翻译让它很通顺，我要用它用生成图片交给大模型，你不必一大堆分析，直接就直接明了的给我最终的翻译句子就行了，记住直接返回翻译后的句子，不必多说什么其他的我的意思是直接翻译`,
       });
 
       console.log(response.output_text);
