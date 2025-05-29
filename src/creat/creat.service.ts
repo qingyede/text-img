@@ -314,27 +314,44 @@ export class CreatService {
         };
       }
     } else if (createCreatDto.type === 'Midjourney') {
+      console.log(createCreatDto);
+
+      // return false;
       const runMidjourneyModel = async (): Promise<any> => {
         const MIDJOURNEY_API_URL =
           'https://api.acedata.cloud/midjourney/imagine';
-        // const MIDJOURNEY_API_KEY = '7b6756ed84e64c099e0275eb63ab4e7b'; // 建议使用环境变量
         const MIDJOURNEY_API_KEY = process.env.MIDJOURNEY_API_KEY;
-
-        // 翻译 prompt
-        const rs = await this.translateToEnglish(createCreatDto.prompt);
-        if (rs.code !== 200) {
-          return {
-            code: 10001,
-            message: '翻译失败',
-            error: rs,
-          };
-        } else {
-          createCreatDto.prompt = rs.data;
+        if (createCreatDto.prompt) {
+          // 翻译 prompt
+          const rs = await this.translateToEnglish(createCreatDto.prompt);
+          if (rs.code !== 200) {
+            return {
+              code: 10001,
+              message: '翻译失败',
+              error: rs,
+            };
+          } else {
+            createCreatDto.prompt = rs.data;
+          }
         }
 
+        console.log(
+          createCreatDto.prompt,
+          'createCreatDto.promptcreateCreatDto.prompt',
+        );
+
         const payload = {
-          prompt: createCreatDto.prompt,
+          ...(createCreatDto.prompt && {
+            prompt: createCreatDto.img
+              ? `${createCreatDto.img} ${createCreatDto.prompt} --iw 2`
+              : createCreatDto.prompt,
+          }),
+
+          ...(createCreatDto.action && { action: createCreatDto.action }),
+
+          ...(createCreatDto.image_id && { image_id: createCreatDto.image_id }),
         };
+        console.log(payload, 'payload');
 
         const headers = {
           Authorization: `Bearer ${MIDJOURNEY_API_KEY}`,
@@ -364,8 +381,12 @@ export class CreatService {
           // 提取图片地址
           // const resultImage = result.raw_image_url || result.image_url;
           const resultImage = result.raw_image_url;
+          const image_id = result.image_id;
 
-          return resultImage;
+          return {
+            resultImage,
+            image_id,
+          };
         } catch (error) {
           console.error(`请求 Midjourney 失败: ${error}`);
           return null;
@@ -373,7 +394,7 @@ export class CreatService {
       };
 
       try {
-        const resultImage = await runMidjourneyModel();
+        const { resultImage, image_id } = await runMidjourneyModel();
 
         if (!resultImage) {
           return {
@@ -394,6 +415,7 @@ export class CreatService {
           code: 200,
           message: '图片生成成功',
           result: resultImage,
+          image_id: image_id,
         };
       } catch (error) {
         return {
@@ -462,7 +484,7 @@ export class CreatService {
     try {
       const privateKey = process.env.NODE_PRIVATEKEY;
       // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
-      console.log(text);
+      console.log(text, 'text');
       const openai = new OpenAI({
         apiKey: privateKey,
         // httpAgent: proxyAgent,

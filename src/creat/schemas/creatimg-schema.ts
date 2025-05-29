@@ -5,7 +5,7 @@ export type CreatImgDocument = CreatImg & Document;
 
 @Schema({ timestamps: true }) // 添加 timestamps 方便按时间排序
 export class CreatImg {
-  @Prop({ required: true })
+  @Prop()
   prompt: string;
 
   @Prop({ required: true })
@@ -40,6 +40,12 @@ export class CreatImg {
 
   @Prop()
   img: string;
+
+  @Prop()
+  image_id: string;
+
+  @Prop()
+  action: string;
 }
 
 export const CreatImgSchema = SchemaFactory.createForClass(CreatImg);
