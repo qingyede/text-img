@@ -46,6 +46,9 @@ export class CreatImg {
 
   @Prop()
   action: string;
+
+  @Prop()
+  url: string;
 }
 
 export const CreatImgSchema = SchemaFactory.createForClass(CreatImg);

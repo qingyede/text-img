@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
 import OpenAI from 'openai';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 @Injectable()
 export class CreatService {
@@ -15,11 +15,11 @@ export class CreatService {
   async create(createCreatDto: CreateCreatDto) {
     if (createCreatDto.type === 'gpt') {
       const privateKey = process.env.NODE_PRIVATEKEY;
-      // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
+      const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
 
       const openai = new OpenAI({
         apiKey: privateKey,
-        // httpAgent: proxyAgent,
+        httpAgent: proxyAgent,
       });
 
       try {
@@ -298,6 +298,7 @@ export class CreatService {
           time: new Date().toLocaleString(),
           image: resultImage,
           userId: createCreatDto.userId,
+          url: createCreatDto.img,
         });
         await creatImg.save();
 
@@ -337,7 +338,7 @@ export class CreatService {
 
         console.log(
           createCreatDto.prompt,
-          'createCreatDto.promptcreateCreatDto.prompt',
+          'createCreatDto.promptcreateCreatDto.prompt2',
         );
 
         const payload = {
@@ -483,11 +484,11 @@ export class CreatService {
   async translateToEnglish(text: string): Promise<any> {
     try {
       const privateKey = process.env.NODE_PRIVATEKEY;
-      // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
+      const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
       console.log(text, 'text');
       const openai = new OpenAI({
         apiKey: privateKey,
-        // httpAgent: proxyAgent,
+        httpAgent: proxyAgent,
       });
 
       const response = await openai.responses.create({

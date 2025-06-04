@@ -33,6 +33,9 @@ export class CreateCreatDto {
   @IsOptional()
   action?: string;
 
+  @IsOptional()
+  url?: string;
+
   @IsString({ message: '用户id必须是字符串-userId' })
   @IsNotEmpty({ message: '用户id不能为空-userId' })
   userId: string;
