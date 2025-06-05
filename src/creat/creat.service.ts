@@ -15,7 +15,7 @@ export class CreatService {
     private ExampleImageModel: Model<ExampleImage>,
   ) {}
 
-  async create(createCreatDto: CreateCreatDto) {
+  async create(createCreatDto: CreateCreatDto, isUrl = true) {
     if (createCreatDto.type === 'gpt') {
       const privateKey = process.env.NODE_PRIVATEKEY;
       // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
@@ -109,7 +109,7 @@ export class CreatService {
 
           // 是否启用 Base64 输出：设置为 true，返回 Base64 编码图像，适合需要直接处理图像数据的场景。
           // 可用值：true 或 false。false 时返回 URL。
-          enable_base64_output: true,
+          enable_base64_output: isUrl,
 
           // 是否启用安全检查：设置为 true，启用安全检查器以过滤不适当内容。
           // 可用值：true 或 false。建议公开场景中启用。
@@ -526,7 +526,7 @@ export class CreatService {
       try {
         switch (modelType) {
           case 'gpt': {
-            console.log(888888888);
+            console.log('gpt生图');
             const privateKey = process.env.NODE_PRIVATEKEY;
             // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
             const openai = new OpenAI({
@@ -537,7 +537,7 @@ export class CreatService {
             const result = await openai.images.generate({
               model: 'dall-e-2',
               prompt: finalPrompt,
-              response_format: 'b64_json',
+              response_format: 'url',
             });
 
             resultImage = `data:image/png;base64,${result.data[0].b64_json}`;
@@ -545,11 +545,16 @@ export class CreatService {
           }
 
           case 'flux-dev': {
-            const result = await this.create({
-              ...createCreatDto,
-              prompt: finalPrompt,
-              type: 'flux-dev',
-            });
+            console.log('flux-dev生图');
+
+            const result = await this.create(
+              {
+                ...createCreatDto,
+                prompt: finalPrompt,
+                type: 'flux-dev',
+              },
+              false,
+            );
             resultImage = result?.result;
             break;
           }
@@ -565,6 +570,8 @@ export class CreatService {
           }
 
           case 'Midjourney': {
+            console.log('Midjourney生图');
+
             const result = await this.create({
               ...createCreatDto,
               prompt: finalPrompt,
