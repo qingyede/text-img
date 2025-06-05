@@ -540,7 +540,7 @@ export class CreatService {
               response_format: 'url',
             });
 
-            resultImage = `data:image/png;base64,${result.data[0].b64_json}`;
+            resultImage = result.data[0].url;
             break;
           }
 
