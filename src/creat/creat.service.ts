@@ -3,6 +3,7 @@ import { CreateCreatDto } from './dto/create-creat.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreatImg } from './schemas/creatimg-schema';
+import { ExampleImage } from './schemas/example-image.schema';
 import OpenAI from 'openai';
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 
@@ -10,6 +11,8 @@ import OpenAI from 'openai';
 export class CreatService {
   constructor(
     @InjectModel(CreatImg.name) private CreatImgModel: Model<CreatImg>,
+    @InjectModel(ExampleImage.name)
+    private ExampleImageModel: Model<ExampleImage>,
   ) {}
 
   async create(createCreatDto: CreateCreatDto) {
@@ -507,6 +510,130 @@ export class CreatService {
         code: 10001,
         msg: '翻译失败',
         data: error,
+      };
+    }
+  }
+
+  // 生成模型示例图片（promptList + model）
+  async creatExampleImg(createCreatDto: any) {
+    const { promptList, modelType, userId } = createCreatDto;
+    const results = [];
+
+    for (const prompt of promptList) {
+      const finalPrompt = prompt; // 不再翻译，直接使用英文 prompt
+      let resultImage: string | null = null;
+
+      try {
+        switch (modelType) {
+          case 'gpt': {
+            console.log(888888888);
+            const privateKey = process.env.NODE_PRIVATEKEY;
+            // const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:7890');
+            const openai = new OpenAI({
+              apiKey: privateKey,
+              // httpAgent: proxyAgent,
+            });
+
+            const result = await openai.images.generate({
+              model: 'dall-e-2',
+              prompt: finalPrompt,
+              response_format: 'b64_json',
+            });
+
+            resultImage = `data:image/png;base64,${result.data[0].b64_json}`;
+            break;
+          }
+
+          case 'flux-dev': {
+            const result = await this.create({
+              ...createCreatDto,
+              prompt: finalPrompt,
+              type: 'flux-dev',
+            });
+            resultImage = result?.result;
+            break;
+          }
+
+          case 'hidream-i1-full': {
+            const result = await this.create({
+              ...createCreatDto,
+              prompt: finalPrompt,
+              type: 'hidream-i1-full',
+            });
+            resultImage = result?.result;
+            break;
+          }
+
+          case 'Midjourney': {
+            const result = await this.create({
+              ...createCreatDto,
+              prompt: finalPrompt,
+              type: 'Midjourney',
+            });
+            resultImage = result?.result;
+            break;
+          }
+
+          default:
+            resultImage = null;
+        }
+      } catch (err) {
+        console.error(`模型调用失败: ${modelType}`, err);
+      }
+
+      const doc = new this.ExampleImageModel({
+        prompt: finalPrompt,
+        modelType: modelType,
+        image: resultImage,
+        time: new Date().toLocaleString(),
+        userId,
+      });
+
+      await doc.save();
+      results.push(doc);
+    }
+
+    return {
+      code: 200,
+      message: '示例图生成完成',
+      results,
+    };
+  }
+
+  // 查询指定模型生成的所有示例图（可加分页）
+  async findImgByModel(model: string) {
+    const result = await this.ExampleImageModel.find({
+      modelType: model,
+    })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    return {
+      code: 200,
+      message: '查询成功',
+      data: result,
+    };
+  }
+
+  // 删除所有示例图片
+  async removeAllExampleImg() {
+    try {
+      // 删除所有 ExampleImageModel 数据
+      const result = await this.ExampleImageModel.deleteMany({});
+
+      return {
+        code: 200,
+        message: '所有示例图片删除成功',
+        data: {
+          deletedCount: result.deletedCount, // 返回删除的文档数量
+        },
+      };
+    } catch (error) {
+      console.error('删除示例图片失败:', error);
+      return {
+        code: 10001,
+        message: '删除示例图片失败',
+        error: error.message,
       };
     }
   }
