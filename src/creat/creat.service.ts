@@ -541,6 +541,10 @@ export class CreatService {
             });
 
             resultImage = result.data[0].url;
+            console.log(
+              resultImage,
+              'resultImageresultImageresultImageresultImage',
+            );
             break;
           }
 

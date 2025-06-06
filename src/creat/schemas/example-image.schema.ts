@@ -20,6 +20,9 @@ export class ExampleImage extends Document {
 
   @Prop() // 👈 补充：自定义时间字段（非 Mongo 默认的 createdAt）
   time: string;
+
+  @Prop()
+  img: string;
 }
 
 export const ExampleImageSchema = SchemaFactory.createForClass(ExampleImage);

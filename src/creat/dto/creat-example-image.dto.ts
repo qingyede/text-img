@@ -10,4 +10,7 @@ export class CreateExampleImageDto {
 
   @IsString()
   userId: string;
+
+  @IsString()
+  img: string;
 }
